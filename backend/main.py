@@ -11,21 +11,37 @@ from models.schemas import (
     StockData, StockSearchResult, AnalysisResponse,
     OrderRequest, Order, PortfolioResponse, PortfolioItem
 )
+from routers.auth import router as auth_router
+from routers.fno import router as fno_router
+from data.live_provider import broadcast_live_prices
+from database import init_db
+from config import ALLOWED_ORIGINS
 
 app = FastAPI(
-    title="Stock Trading Bot API",
-    description="AI-powered stock analysis and trading bot for Indian markets",
-    version="1.0.0"
+    title="F&O Trading Platform API",
+    description="AI-powered F&O trading platform for Indian markets with live data",
+    version="2.0.0"
 )
 
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(auth_router)
+app.include_router(fno_router)
+
+
+# Background task for live prices
+@app.on_event("startup")
+async def start_live_data():
+    """Start background task for broadcasting live prices."""
+    asyncio.create_task(broadcast_live_prices())
 
 # In-memory storage (replace with database in production)
 orders_db: List[Order] = []
@@ -33,13 +49,19 @@ portfolio_db: List[PortfolioItem] = []
 watchlist_db: List[str] = []
 
 
+@app.on_event("startup")
+async def on_startup():
+    """Initialize database on startup."""
+    await init_db()
+
+
 @app.get("/")
 async def root():
     """API health check."""
     return {
         "status": "ok",
-        "message": "Stock Trading Bot API is running",
-        "version": "1.0.0"
+        "message": "F&O Trading Platform API is running",
+        "version": "2.0.0"
     }
 
 
